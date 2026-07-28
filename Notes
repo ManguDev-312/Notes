@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrystalList - Minimalist Task Manager</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #2e1065 100%);
+            --crystal-bg: rgba(255, 255, 255, 0.03);
+            --crystal-border: rgba(255, 255, 255, 0.08);
+            --crystal-highlight: rgba(255, 255, 255, 0.15);
+            --interface-glow: rgba(56, 189, 248, 0.15);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --delete-color: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg-gradient);
+            overflow-x: hidden;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* Ambient background blur elements */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 0;
+        }
+
+        body::before {
+            width: 400px;
+            height: 400px;
+            background: rgba(99, 102, 241, 0.15);
+            top: 10%;
+            left: 15%;
+            animation: float 12s infinite alternate ease-in-out;
+        }
+
+        body::after {
+            width: 350px;
+            height: 350px;
+            background: rgba(236, 72, 153, 0.1);
+            bottom: 10%;
+            right: 15%;
+            animation: float 8s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(20px) scale(1.05); }
+        }
+
+        /* Main App Card */
+        .list-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            background: var(--crystal-bg);
+            backdrop-filter: blur(35px) saturate(200%);
+            -webkit-backdrop-filter: blur(35px) saturate(200%);
+            border: 1px solid var(--crystal-border);
+            border-radius: 24px;
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 var(--crystal-highlight);
+        }
+
+        .brand {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .brand span {
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Input Bar */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 18px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--crystal-border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 15px var(--interface-glow);
+        }
+
+        .btn-add {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: var(--accent-color);
+            padding: 0 24px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-add:hover {
+            background: rgba(56, 189, 248, 0.08);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px var(--interface-glow);
+        }
+
+        /* Navigation Filters */
+        .filters {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            padding: 0 2px;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .filter-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .filter-btn.active {
+            color: var(--accent-color);
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        /* Task List Wrapper */
+        .todo-list {
+            list-style: none;
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        /* Individual Task Item */
+        .todo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .todo-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .todo-item.completed {
+            opacity: 0.4;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        /* Checkbox and Label Layout */
+        .todo-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--crystal-border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .todo-item:hover .custom-checkbox {
+            border-color: var(--text-secondary);
+        }
+
+        .todo-item.completed .custom-checkbox {
+            background: rgba(56, 189, 248, 0.1);
+            border-color: var(--accent-color);
+        }
+
+        .custom-checkbox::after {
+            content: '✓';
+            color: var(--accent-color);
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: none;
+        }
+
+        .todo-item.completed .custom-checkbox::after {
+            display: block;
+        }
+
+        .todo-text {
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            word-break: break-all;
+            outline: none;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.3rem;
+            padding: 0 4px;
+            transition: all 0.2s ease;
+            line-height: 1;
+        }
+
+        .btn-delete:hover {
+            color: var(--delete-color);
+            transform: scale(1.1);
+        }
+
+        /* Footer Dashboard */
+        .panel-footer {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid var(--crystal-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .clear-completed {
+            background: transparent;
+            border: none;
+            color: #a78bfa;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .clear-completed:hover {
+            color: #c084fc;
+            text-decoration: underline;
+        }
+
+        /* Scrollbar customization */
+        .todo-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .todo-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="list-container">
+        <div class="brand">Crystal<span>List</span></div>
+        
+        <div class="input-group">
+            <input type="text" id="task-input" placeholder="Add a new task here..." autocomplete="off">
+            <button class="btn-add" onclick="addTask()">Add</button>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">All</button>
+            <button class="filter-btn" id="filter-active" onclick="setFilter('active')">Active</button>
+            <button class="filter-btn" id="filter-completed" onclick="setFilter('completed')">Completed</button>
+        </div>
+
+        <ul class="todo-list" id="todo-list-container"></ul>
+
+        <div class="panel-footer">
+            <div><span id="items-left">0</span> tasks left</div>
+            <button class="clear-completed" onclick="clearCompleted()">Clear Completed</button>
+        </div>
+    </div>
+
+    <script>
+        let tasks = [];
+        let currentFilter = 'all';
+
+        const taskInput = document.getElementById('task-input');
+        const todoListContainer = document.getElementById('todo-list-container');
+        const itemsLeftDisplay = document.getElementById('items-left');
+
+        // Handle Enter key press inside input field
+        taskInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+
+        function addTask() {
+            const text = taskInput.value.trim();
+            if (text === '') return;
+
+            const newTask = {
+                id: Date.now(),
+                text: text,
+                completed: false
+            };
+
+            tasks.push(newTask);
+            taskInput.value = '';
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(task => {
+                if (task.id === id) {
+                    return { ...task, completed: !task.completed };
+                }
+                return task;
+            });
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            renderTasks();
+        }
+
+        function clearCompleted() {
+            tasks = tasks.filter(task => !task.completed);
+            renderTasks();
+        }
+
+        function setFilter(filterType) {
+            currentFilter = filterType;
+            
+            // Toggle active visual states on buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filter-${filterType}`).classList.add('active');
+            
+            renderTasks();
+        }
+
+        function renderTasks() {
+            todoListContainer.innerHTML = '';
+            
+            let filteredTasks = tasks;
+            if (currentFilter === 'active') {
+                filteredTasks = tasks.filter(task => !task.completed);
+            } else if (currentFilter === 'completed') {
+                filteredTasks = tasks.filter(task => task.completed);
+            }
+
+            filteredTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `todo-item ${task.completed ? 'completed' : ''}`;
+                
+                li.innerHTML = `
+                    <div class="todo-left" onclick="toggleTask(${task.id})">
+                        <div class="custom-checkbox"></div>
+                        <div class="todo-text">${escapeHtml(task.text)}</div>
+                    </div>
+                    <button class="btn-delete" onclick="deleteTask(${task.id})" title="Delete Task">×</button>
+                `;
+                
+                todoListContainer.appendChild(li);
+            });
+
+            // Update pending tasks counter
+            const activeCount = tasks.filter(task => !task.completed).length;
+            itemsLeftDisplay.innerText = activeCount;
+        }
+
+        // Standard XSS protection utility
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Initial empty view render
+        renderTasks();
+    </script>
+</body>
+</html>
